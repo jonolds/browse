@@ -12,6 +12,7 @@ import org.apache.spark.sql.catalog.Function;
 import scala.Tuple2;
 
 public class Browse {
+	
 	static final int support_threshold = 3;
 	public static void main(String[] args) throws IOException {
 		JavaRDD<String> lines = Sp.settings().read().textFile("browsingSmall.txt").toJavaRDD();
