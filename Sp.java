@@ -284,7 +284,6 @@ public class Sp implements Serializable {
 		SparkContext sc = spark.sparkContext();
 		sc.setLogLevel("WARN");
 		FileUtils.deleteDirectory(new File("output"));
-		FileUtils.deleteDirectory(new File("output2"));
 		return spark;
 	}
 }
