@@ -1,14 +1,13 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	
+
 	<groupId>a2</groupId>
-	<artifactId>Browse</artifactId>
+	<artifactId>browse2</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
-	
+
 	<name>browse</name>
-	<url>http://maven.apache.org</url>
 	
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -37,23 +36,12 @@
 		</dependency>
 		
 	</dependencies>
+	
   	<build>
   		
-		<sourceDirectory>C:\bigData\a2\browse</sourceDirectory>
-		<outputDirectory>C:\bigData\a2\browse\target</outputDirectory>
-		<testSourceDirectory>C:\bigData\a2\browse</testSourceDirectory>
-		<testOutputDirectory>C:\bigData\a2\browse\target</testOutputDirectory>
-		<scriptSourceDirectory>C:\bigData\a2\browse</scriptSourceDirectory>
-		<resources>
-			<resource>
-				<directory></directory>
-			</resource>
-		</resources>
-		<testResources>
-			<testResource>
-				<directory></directory>
-			</testResource>
-		</testResources>
+		<sourceDirectory>src</sourceDirectory>
+		<outputDirectory>target</outputDirectory>
+
 		<plugins>
 			
 			<plugin>
@@ -112,7 +100,7 @@
 							<goal>site</goal>
 						</goals>
 						<configuration>
-							<outputDirectory>bin</outputDirectory>
+							<outputDirectory>target</outputDirectory>
 							<reportPlugins>
 								<reportPlugin>
 									<groupId>org.apache.maven.plugins</groupId>
@@ -128,7 +116,7 @@
 							<goal>deploy</goal>
 						</goals>
 						<configuration>
-							<outputDirectory>bin</outputDirectory>
+							<outputDirectory>target</outputDirectory>
 							<reportPlugins>
 								<reportPlugin>
 									<groupId>org.apache.maven.plugins</groupId>
@@ -139,7 +127,7 @@
 					</execution>
 				</executions>
 				<configuration>
-					<outputDirectory>bin</outputDirectory>
+					<outputDirectory>target</outputDirectory>
 					<reportPlugins>
 						<reportPlugin>
 							<groupId>org.apache.maven.plugins</groupId>
@@ -150,7 +138,4 @@
 			</plugin>
 		</plugins>
 	</build>
-	<reporting>
-		<outputDirectory>C:\bigData\a2\browse\target</outputDirectory>
-	</reporting>
 </project>

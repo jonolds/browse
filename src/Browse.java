@@ -13,6 +13,7 @@ import org.apache.spark.rdd.RDD;
 
 import scala.Tuple2;
 
+@SuppressWarnings("unused")
 public class Browse {
 
 	static void aPriori(JavaRDD<String> lines, int support_threshold) throws IOException {
@@ -24,6 +25,9 @@ public class Browse {
 
 	//• Count the support of itemsets in C1
 		JavaPairRDD<String, Integer> c1_count = items.mapToPair(x->new Tuple2<>(x, 1)).reduceByKey((n1, n2)->n1+n2);
+		List<Tuple2<String, Integer>> list = c1_count.collect();
+		System.out.println(c1_count.count());
+		System.out.println(list.size());
 
 	//• Prune non-frequent: L1 = { b, c, j, m }
 		JavaPairRDD<String, Integer> l1_unsorted = c1_count.filter(x->x._2 >= support_threshold).mapToPair(x->new Tuple2<>(x._1, x._2));
@@ -66,10 +70,9 @@ public class Browse {
 		//INTS - PAIRS
 		JavaPairRDD<Integer, Integer> l2_conv = JavaPairRDD.fromJavaRDD(conv.filter(x-> x._2() >= support_threshold).keys());
 		
-		System.out.println("support " + support_threshold + " pairs: " + l2.count());
+		System.out.println("support " + support_threshold + " pairs: " + l2_conv.count());
 //		l2.saveAsTextFile("output/output" + String.valueOf(support_threshold));
 
-		
 		
 //TRIPLES=======================================================
 	//• Generate C3 = { {b,c,m} {b,c,j} {b,m,j} {c,m,j} }
@@ -99,16 +102,16 @@ public class Browse {
 		return pruned; 
 	}
 	
-	static JavaPairRDD<Integer, Integer> convertToInts(JavaPairRDD<String, String> orig, JavaPairRDD<String, Integer> table) {
-		JavaPairRDD<String, Integer> convert_key = JavaPairRDD.fromJavaRDD(orig.join(table).values());
+	static <K>JavaPairRDD<Integer, Integer> convertToInts(JavaPairRDD<K, K> orig, JavaPairRDD<K, Integer> table) {
+		JavaPairRDD<K, Integer> convert_key = JavaPairRDD.fromJavaRDD(orig.join(table).values());
 		JavaPairRDD<Integer, Integer> convert_val = JavaPairRDD.fromJavaRDD(convert_key.join(table).values());
 		return convert_val;
 	}
 	
 	public static void main(String[] args) throws IOException, InterruptedException {
 		final int support_threshold = 100;
-		JavaRDD<String> lines = Sp.settings().read().textFile("browsingSmall.txt").toJavaRDD();
-		aPriori(lines, 3);
+		JavaRDD<String> lines = Sp.settings().read().textFile("browsing.txt").toJavaRDD();
+		aPriori(lines, 100);
 		
 		Thread.sleep(30000);		
 	}
