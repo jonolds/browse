@@ -31,12 +31,10 @@ public class Browse {
 /* FREQUENT ITEMS ======================================================= */
 	//• C1 = { {b} {c} {j} {m} {n} {p} }
 		JavaRDD<String> items = baskets.flatMap(l -> Arrays.asList(l).iterator());
-
 	//• Count the support of itemsets in C1
 		JavaPairRDD<String, Integer> c1_count = items.mapToPair(x->new Tuple2<>(x, 1)).reduceByKey((n1, n2)->n1+n2);
-
 	//• Prune non-frequent: L1 = { b, c, j, m }
-		JavaPairRDD<String, Integer> l1 = c1_count.filter(x->x._2 >= support);	
+		JavaPairRDD<String, Integer> l1 = c1_count.filter(x->x._2 >= support).sortByKey();	
 		
 		/* HASHTABLES */
 		final Hashtable<String, Integer> ht1 = getHashtable(l1.collect());
@@ -66,23 +64,20 @@ public class Browse {
 			}
 		}
 		
-		//• Generate C2 = { {b,c} {b,j} {b,m} {c,j} {c,m} {j,m} }
+	//• Generate C2 = { {b,c} {b,j} {b,m} {c,j} {c,m} {j,m} }
 		JavaPairRDD<Integer, Integer> c2 = baskets.flatMapToPair(new C2PairFlatFunc());
-		
 	//• Count the support of itemsets in C2
-		JavaPairRDD<Tuple2<Integer, Integer>, Integer> c2_counted = c2.mapToPair(x->new Tuple2<>(x, 1)).reduceByKey((n1, n2) -> n1 + n2);
-		
+		JavaPairRDD<Tuple2<Integer, Integer>, Integer> c2_counted = c2.mapToPair(x->new Tuple2<>(x, 1)).reduceByKey((n1, n2) -> n1 + n2);		
 	//• Prune non-frequent: L2 = { {b,c} {b,m} {c,m} {c,j} }
 		JavaPairRDD<Tuple2<Integer, Integer>, Integer> l2 = c2_counted.filter(x->x._2 >= support);
-//		JavaPairRDD<Tuple2<Integer, Integer>, Integer> l2 = l2_support.sortByKey(new Tup2IntIntComp(), false);
 		final Map<Tuple2<Integer, Integer>, Integer> L2 = l2.collectAsMap();
 		
 	/* l2_confidence */
 		JavaPairRDD<Tuple2<Integer, Integer>, Double> L2_conf = l2.flatMapToPair(new L2Conf());
-		JavaPairRDD<Tuple2<Integer, Integer>, Double> L2_conf_sorted = L2_conf.sortByKey(new Tup2IntIntComp(), true).mapToPair(x->new Tuple2<>(x._2, x._1)).sortByKey(false).mapToPair(x->new Tuple2<>(x._2, x._1));
+		JavaPairRDD<Tuple2<Integer, Integer>, Double> L2_conf_sorted = L2_conf.sortByKey(new PairComp(), true).mapToPair(x->new Tuple2<>(x._2, x._1)).sortByKey(false).mapToPair(x->new Tuple2<>(x._2, x._1));
 		JavaPairRDD<Tuple2<String, String>, Double> L2_conf_str = L2_conf_sorted.mapToPair(x->new Tuple2<>(new Tuple2<>(ht2.get(x._1._1), ht2.get(x._1._2)), x._2));
 		JavaRDD<String> L2_conf_print = L2_conf_str.map(x->new String(x._1._1 + " ---> " + x._1._2 + " = " + x._2));
-		L2_conf_print.saveAsTextFile("output/out1");
+		L2_conf_print.saveAsTextFile("output/out2");
 
 
 /* TRIPLES ======================================================= */
@@ -109,51 +104,27 @@ public class Browse {
 
 		}
 			
-		//• Generate C3 = { {b,c,m} {b,c,j} {b,m,j} {c,m,j} }
+	//• Generate C3 = { {b,c,m} {b,c,j} {b,m,j} {c,m,j} }
 		JavaPairRDD<Tuple2<Integer, Integer>, Integer> c3 = baskets.flatMapToPair(new C3PairFlatFunc());
-		//• Count the support of itemsets in C3
+	//• Count the support of itemsets in C3
 		JavaPairRDD<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer> c3_counted = c3.mapToPair(x->new Tuple2<>(x, 1)).reduceByKey((n1, n2) -> n1 + n2);
-	
-		//• Prune non-frequent: L3 = { {b,c,m} }
+	//• Prune non-frequent: L3 = { {b,c,m} }
 		JavaPairRDD<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer> l3 = c3_counted.filter(x->x._2 >= support);
-//		JavaPairRDD<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer> l3 = l3_support.sortByKey(new Tup2Tup2IntIntIntComp(), false);
-//		final List<Tuple2<Tuple2<Integer, Integer>, Integer>> l3 = l3_support.mapToPair(x->new Tuple2<>(new Tuple2<>(x._1._1._1, x._1._1._2), x._1._2)).collect();
-		Map<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer> L3 = l3.collectAsMap();
 		
-	/* l2_confidence */
-		
+	/* l3_confidence */
 		JavaPairRDD<Tuple2<Tuple2<Integer, Integer>, Integer>, Double> L3_conf = l3.flatMapToPair(new L3Conf());
-		JavaPairRDD<Tuple2<Tuple2<Integer, Integer>, Integer>, Double> L3_conf_sorted = L3_conf.sortByKey(new Tup2Tup2IntIntIntComp(), true).mapToPair(x->new Tuple2<>(x._2, x._1)).sortByKey(false).mapToPair(x->new Tuple2<>(x._2, x._1));
+		JavaPairRDD<Tuple2<Tuple2<Integer, Integer>, Integer>, Double> L3_conf_sorted = L3_conf.sortByKey(new TripComp(), true).mapToPair(x->new Tuple2<>(x._2, x._1)).sortByKey(false).mapToPair(x->new Tuple2<>(x._2, x._1));
 		JavaPairRDD<Tuple2<Tuple2<String, String>, String>, Double> L3_conf_str = L3_conf_sorted.mapToPair(x->new Tuple2<>(new Tuple2<>(new Tuple2<>(ht2.get(x._1._1._1), ht2.get(x._1._1._2)), ht2.get(x._1._2)), x._2));
 		JavaRDD<String> L3_conf_print = L3_conf_str.map(x->new String("(" + x._1._1._1 + ", " + x._1._1._2 + ") ---> " + x._1._2 + " = " + x._2));
 		L3_conf_print.saveAsTextFile("output/out3");
-		
-		System.out.println(L3.size());
-	}
-	
-	static JavaPairRDD<Tuple2<Integer, Integer>, Double> sortL2Conf(JavaPairRDD<Tuple2<Integer, Integer>, Double> orig) {
-		return orig.sortByKey(new Tup2IntIntComp()).mapToPair(x->new Tuple2<>(x._2, x._1)).sortByKey().mapToPair(x->new Tuple2<>(x._2, x._1));
-	}
-	
-	static JavaPairRDD<Tuple2<Integer, Integer>, Double> l2_conf_(JavaPairRDD<Tuple2<Integer, Integer>, Double> orig) {
-		return orig.sortByKey(new Tup2IntIntComp()).mapToPair(x->new Tuple2<>(x._2, x._1)).sortByKey().mapToPair(x->new Tuple2<>(x._2, x._1));
 	}
 
-	static class Tup2IntIntComp implements Comparator<Tuple2<Integer, Integer>>, Serializable {
+	static class PairComp implements Comparator<Tuple2<Integer, Integer>>, Serializable {
 		public int compare(Tuple2<Integer, Integer> a, Tuple2<Integer, Integer> b) {
-//			return (a._1 > b._1) ? 1 : (a._1 < b._1) ? -1 : (a._2 > b._2) ? 1 : (a._2 < b._2) ? -1 : 0;
 			return (a._1 > b._1) ? 1 : (a._1 < b._1) ? -1 : 0;
 		}
 	}
-	
-	static class L3ConfComp implements Comparator<Tuple2<Integer, Integer>>, Serializable {
-		public int compare(Tuple2<Integer, Integer> a, Tuple2<Integer, Integer> b) {
-//			return (a._1 > b._1) ? 1 : (a._1 < b._1) ? -1 : (a._2 > b._2) ? 1 : (a._2 < b._2) ? -1 : 0;
-			return (a._1 > b._1) ? 1 : (a._1 < b._1) ? -1 : 0;
-		}
-	}
-	
-	static class Tup2Tup2IntIntIntComp implements Comparator<Tuple2<Tuple2<Integer, Integer>, Integer>>, Serializable {
+	static class TripComp implements Comparator<Tuple2<Tuple2<Integer, Integer>, Integer>>, Serializable {
 		public int compare(Tuple2<Tuple2<Integer, Integer>, Integer> a, Tuple2<Tuple2<Integer, Integer>, Integer> b) {
 			if(a._1._1 > b._1._1)
 				return 1;
@@ -170,18 +141,14 @@ public class Browse {
 	
 	static Hashtable<String, Integer> getHashtable(List<Tuple2<String, Integer>> list) {
 		Hashtable<String, Integer> ht = new Hashtable<>(list.size());
-		for(int i = 0; i < list.size(); i++) {
+		for(int i = 0; i < list.size(); i++)
 			ht.put(list.get(i)._1, i+1);
-//			System.out.println(list.get(i)._1 + " " + (i+1));
-		}
 		return ht;
 	}
 	static Hashtable<Integer, String> getHashtableReverse(List<Tuple2<String, Integer>> list) {
 		Hashtable<Integer, String> ht = new Hashtable<>(list.size());
-		for(int i = 0; i < list.size(); i++) {
+		for(int i = 0; i < list.size(); i++)
 			ht.put(i+1, list.get(i)._1);
-//			System.out.println(ht.get(i+1) + " " + (i+1));
-		}
 		return ht;
 	}
 
