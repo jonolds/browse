@@ -25,7 +25,7 @@ public class Browse {
 
 
 	static void aPriori(int support) throws IOException {
-		JavaRDD<String> lines = settings().read().textFile("browsing.txt").toJavaRDD();
+		JavaRDD<String> lines = settings().read().textFile("browsing2.txt").toJavaRDD();
 		JavaRDD<String[]> baskets = lines.map(ln->ln.split(" ")).persist(StorageLevel.MEMORY_ONLY_SER());
 
 /* FREQUENT ITEMS ======================================================= */
@@ -41,8 +41,9 @@ public class Browse {
 		JavaPairRDD<String, Integer> l1 = l1_support.sortByKey().mapToPair(x->new Tuple2<>(x._2, x._1)).sortByKey(false).mapToPair(x->new Tuple2<>(x._2, x._1));		
 		
 		/* HASHTABLE */
-		final Hashtable<String, Tuple2<Integer, String>> ht1 = getHashtable(l1.collect());
-		final Map<Integer, Integer> L1 = l1_support.mapToPair(x->new Tuple2<>(ht1.get(x._1)._1, x._2)).collectAsMap();
+		final Hashtable<String, Integer> ht1 = getHashtable(l1.collect());
+		final Hashtable<Integer, String> ht2 = getHashtableReverse(l1.collect());
+		final Map<Integer, Integer> L1 = l1_support.mapToPair(x->new Tuple2<>(ht1.get(x._1), x._2)).collectAsMap();
 
 		
 /* PAIRS ======================================================= */
@@ -51,8 +52,18 @@ public class Browse {
 				List<Tuple2<Integer, Integer>> pair_list = new ArrayList<>();
 				for(int i = 0; i < s.length; i++) for(int j = 0; j < s.length; j++)
 					if(s[i].compareTo(s[j]) < 0 && ht1.containsKey(s[i]) && ht1.containsKey(s[j]))
-						pair_list.add(new Tuple2<>(ht1.get(s[i])._1, ht1.get(s[j])._1));
+						pair_list.add(new Tuple2<>(ht1.get(s[i]), ht1.get(s[j])));
 				return pair_list.iterator();
+			}
+		}
+		class L2Conf implements PairFlatMapFunction<Tuple2<Tuple2<Integer, Integer>, Integer>, Tuple2<Integer, Integer>, Double> {
+			public Iterator<Tuple2<Tuple2<Integer, Integer>, Double>> call(Tuple2<Tuple2<Integer, Integer>, Integer> t)	throws Exception {
+				List<Tuple2<Tuple2<Integer, Integer>, Double>> list = new ArrayList<>();
+				Integer i = t._1._1, j = t._1._2;
+				Integer i_sup = L1.get(i), j_sup = L1.get(j);
+				list.add(new Tuple2<>(new Tuple2<>(i, j), Double.valueOf(t._2)/i_sup));
+				list.add(new Tuple2<>(new Tuple2<>(j, i), Double.valueOf(t._2)/j_sup));
+				return list.iterator();
 			}
 		}
 		
@@ -67,18 +78,11 @@ public class Browse {
 		JavaPairRDD<Tuple2<Integer, Integer>, Integer> l2 = l2_support.sortByKey(new Tup2IntIntComp(), false).cache();
 		final Map<Tuple2<Integer, Integer>, Integer> L2 = l2.collectAsMap();
 		
-		/* l2_confidence */
-		JavaPairRDD<Tuple2<Integer, Integer>, Double> L2_conf = l2_support.flatMapToPair(new PairFlatMapFunction<Tuple2<Tuple2<Integer, Integer>, Integer>, Tuple2<Integer, Integer>, Double>() {
-			public Iterator<Tuple2<Tuple2<Integer, Integer>, Double>> call(Tuple2<Tuple2<Integer, Integer>, Integer> t)	throws Exception {
-				List<Tuple2<Tuple2<Integer, Integer>, Double>> list = new ArrayList<>();
-				Integer i = t._1._1, j = t._1._2;
-				Integer i_sup = L1.get(i), j_sup = L1.get(j);
-				list.add(new Tuple2<>(new Tuple2<>(i, j), Double.valueOf(t._2)/i_sup));
-				return list.iterator();
-			}
-		});
-		
-		L2_conf.saveAsTextFile("output/out1");
+	/* l2_confidence */
+		JavaPairRDD<Tuple2<Integer, Integer>, Double> L2_conf = l2_support.flatMapToPair(new L2Conf()).sortByKey(new Tup2IntIntComp()).mapToPair(x->new Tuple2<>(x._2, x._1)).sortByKey(false).mapToPair(x->new Tuple2<>(x._2, x._1));;
+		JavaPairRDD<Tuple2<String, String>, Double> L2_conf_str = L2_conf.mapToPair(x->new Tuple2<>(new Tuple2<>(ht2.get(x._1._1), ht2.get(x._1._2)), x._2));
+		JavaRDD<String> L2_conf_print = L2_conf_str.map(x->new String(x._1._1 + " ---> " + x._1._2 + " = " + x._2));
+		L2_conf_print.saveAsTextFile("output/out1");
 
 
 /* TRIPLES ======================================================= */
@@ -86,9 +90,9 @@ public class Browse {
 //			public Iterator<Tuple2<Tuple2<Integer, Integer>, Integer>> call(String[] s) throws Exception {
 //				List<Tuple2<Tuple2<Integer, Integer>, Integer>> trip_list = new ArrayList<>();
 //				for(int i = 0; i < s.length; i++) for(int j = 0; j < s.length; j++) for(int k = 0; k < s.length; k++)
-//					if(s[i].compareTo(s[j]) < 0 && s[j].compareTo(s[k]) < 0 && ht.containsKey(s[i]) && ht.containsKey(s[j]) && ht.containsKey(s[k]))
-//						if(L2.containsKey(new Tuple2<>(ht.get(s[i])._1, ht.get(s[j])._1)) && L2.containsKey(new Tuple2<>(ht.get(s[j])._1, ht.get(s[k])._1)) && L2.containsKey(new Tuple2<>(ht.get(s[i])._1, ht.get(s[k])._1)))
-//							trip_list.add(	new Tuple2<>(	new Tuple2<>(ht.get(s[i])._1, ht.get(s[j])._1), ht.get(s[k])._1	)	);
+//					if(s[i].compareTo(s[j]) < 0 && s[j].compareTo(s[k]) < 0 && ht1.containsKey(s[i]) && ht1.containsKey(s[j]) && ht1.containsKey(s[k]))
+//						if(L2.containsKey(new Tuple2<>(ht1.get(s[i]), ht1.get(s[j]))) && L2.containsKey(new Tuple2<>(ht1.get(s[j]), ht1.get(s[k]))) && L2.containsKey(new Tuple2<>(ht1.get(s[i]), ht1.get(s[k]))))
+//							trip_list.add(	new Tuple2<>(	new Tuple2<>(ht1.get(s[i]), ht1.get(s[j])), ht1.get(s[k])	)	);
 //				return trip_list.iterator();
 //			}
 //		}
@@ -104,6 +108,14 @@ public class Browse {
 //		
 //		
 //		System.out.println(L3.size());
+	}
+	
+	static JavaPairRDD<Tuple2<Integer, Integer>, Double> sortL2Conf(JavaPairRDD<Tuple2<Integer, Integer>, Double> orig) {
+		return orig.sortByKey(new Tup2IntIntComp()).mapToPair(x->new Tuple2<>(x._2, x._1)).sortByKey().mapToPair(x->new Tuple2<>(x._2, x._1));
+	}
+	
+	static JavaPairRDD<Tuple2<Integer, Integer>, Double> l2_conf_(JavaPairRDD<Tuple2<Integer, Integer>, Double> orig) {
+		return orig.sortByKey(new Tup2IntIntComp()).mapToPair(x->new Tuple2<>(x._2, x._1)).sortByKey().mapToPair(x->new Tuple2<>(x._2, x._1));
 	}
 
 	static class Tup2IntIntComp implements Comparator<Tuple2<Integer, Integer>>, Serializable {
@@ -131,16 +143,21 @@ public class Browse {
 		}
 	}
 	
-	static Hashtable<String, Tuple2<Integer, String>> getHashtable(List<Tuple2<String, Integer>> list) {
-		Hashtable<String, Tuple2<Integer, String>> ht = new Hashtable<>(list.size());
-		for(int i = 0; i < list.size(); i++) { 
-			ht.put(list.get(i)._1, new Tuple2<>(i+1, list.get(i)._1)); 
-		};
+	static Hashtable<String, Integer> getHashtable(List<Tuple2<String, Integer>> list) {
+		Hashtable<String, Integer> ht = new Hashtable<>(list.size());
+		for(int i = 0; i < list.size(); i++)
+			ht.put(list.get(i)._1, i+1);
+		return ht;
+	}
+	static Hashtable<Integer, String> getHashtableReverse(List<Tuple2<String, Integer>> list) {
+		Hashtable<Integer, String> ht = new Hashtable<>(list.size());
+		for(int i = 0; i < list.size(); i++)
+			ht.put(i+1, list.get(i)._1);
 		return ht;
 	}
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-		aPriori(100);
+		aPriori(1);
 //		Thread.sleep(90000);
 	}
 	
